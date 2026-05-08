@@ -7,6 +7,8 @@ export class GameState {
   currentBall: number = 1;
   totalBalls: number = 3;
   highScore: number = 0;
+  multiballActive: boolean = false;
+  activeBallCount: number = 0;
   private callbacks: GameCallbacks = {};
 
   constructor() {
@@ -32,15 +34,37 @@ export class GameState {
     this.callbacks.onScoreChange?.(this.score);
   }
 
-  drainBall(): boolean {
+  drainBall(): "continue" | "gameover" | "multiball-continue" {
+    if (this.multiballActive) {
+      this.activeBallCount--;
+      if (this.activeBallCount <= 0) {
+        // All multiball balls drained - end multiball, consume a ball
+        this.multiballActive = false;
+        this.ballsRemaining--;
+        if (this.ballsRemaining <= 0) {
+          this.endGame();
+          return "gameover";
+        }
+        this.currentBall++;
+        this.callbacks.onBallChange?.(this.currentBall, this.ballsRemaining);
+        return "continue";
+      }
+      return "multiball-continue"; // Still have balls in multiball
+    }
+
     this.ballsRemaining--;
     if (this.ballsRemaining <= 0) {
       this.endGame();
-      return false; // game over
+      return "gameover";
     }
     this.currentBall++;
     this.callbacks.onBallChange?.(this.currentBall, this.ballsRemaining);
-    return true; // continue playing
+    return "continue";
+  }
+
+  activateMultiball() {
+    this.multiballActive = true;
+    this.activeBallCount = 2;
   }
 
   endGame() {
@@ -57,6 +81,8 @@ export class GameState {
     this.score = 0;
     this.ballsRemaining = this.totalBalls;
     this.currentBall = 1;
+    this.multiballActive = false;
+    this.activeBallCount = 0;
   }
 
   private loadHighScore() {

@@ -106,6 +106,16 @@ export function PinballGame() {
       },
       (targetIndex) => {
         dropTargetState.add(targetIndex);
+        // Check if all drop targets are destroyed (4 total)
+        if (dropTargetState.size >= 4 && !gameState.multiballActive) {
+          // Activate multiball!
+          gameState.activateMultiball();
+          // Spawn second ball from top
+          ballManager.addBall(DEFAULT_CONFIG.width / 2, 50);
+          gameState.addScore(1000); // Bonus for multiball
+          addScorePopup(DEFAULT_CONFIG.width / 2, 50, 1000);
+          addHitEffect(DEFAULT_CONFIG.width / 2, 50, "#ff00ff");
+        }
       }
     );
 
@@ -131,14 +141,17 @@ export function PinballGame() {
             playSound("drain");
 
             if (gameState.phase === "playing") {
-              const continueGame = gameState.drainBall();
-              if (continueGame) {
+              const result = gameState.drainBall();
+              if (result === "continue") {
                 // Reset drop targets and spawn new ball
                 resetDropTargets(engine.world, tableElements.dropTargets);
                 dropTargetState.clear();
                 waitingForLaunchRef.current = true;
                 spawnBallAtPlunger();
+              } else if (result === "multiball-continue") {
+                // Still have balls in multiball, don't spawn a new one
               }
+              // "gameover" - game state already handled
             }
           }, 0);
         }
