@@ -1,7 +1,7 @@
 import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
-import { LAUNCH_LANE } from "./engine";
+import { LAUNCH_LANE, PLAYFIELD_WIDTH } from "./engine";
 
 // Visual effects queue
 interface HitEffect {

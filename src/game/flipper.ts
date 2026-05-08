@@ -1,6 +1,6 @@
 import Matter from "matter-js";
-import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
-import type { GameConfig } from "./types";
+import { COLLISION_CATEGORY } from "./types";
+import { TABLE_GEOMETRY, PLAYFIELD_WIDTH } from "./engine";
 
 const { Bodies, Body, Constraint, World } = Matter;
 
@@ -12,27 +12,24 @@ export interface Flipper {
   activeAngle: number;
 }
 
-const FLIPPER_WIDTH = 70;
-const FLIPPER_HEIGHT = 14;
-const FLIPPER_SLOPE = 0.15;
-const ACTIVE_ANGULAR_VELOCITY = 0.3;
-const REST_ANGULAR_VELOCITY = 0.08;
+const FLIPPER_WIDTH = 65;
+const FLIPPER_HEIGHT = 12;
+const FLIPPER_SLOPE = 0.12;
+const ACTIVE_ANGULAR_VELOCITY = 0.35;
+const REST_ANGULAR_VELOCITY = 0.1;
 
-export function createFlippers(
-  config: GameConfig = DEFAULT_CONFIG
-): Flipper[] {
-  const { width, height } = config;
-  const bottomY = height - 80;
-  const gap = 10;
-  const centerX = width / 2;
+export function createFlippers(): Flipper[] {
+  const centerX = TABLE_GEOMETRY.drainCenterX; // center of playfield
+  const bottomY = TABLE_GEOMETRY.flipperY;
+  const spread = TABLE_GEOMETRY.drainGap / 2 + 8; // distance from center to pivot
 
-  // Left flipper
-  const leftX = centerX - gap - FLIPPER_WIDTH / 2 + 15;
-  const leftPivotX = centerX - gap - FLIPPER_WIDTH / 2 + 15;
+  // Left flipper: pivot is at the inner end (closer to center)
+  const leftPivotX = centerX - spread;
+  const leftX = leftPivotX - FLIPPER_WIDTH / 3; // body center offset from pivot
   const leftBody = Bodies.trapezoid(leftX, bottomY, FLIPPER_WIDTH, FLIPPER_HEIGHT, FLIPPER_SLOPE, {
-    density: 0.02,
-    friction: 0.5,
-    restitution: 0.1,
+    density: 0.025,
+    friction: 0.4,
+    restitution: 0.05,
     label: "flipper-left",
     collisionFilter: {
       category: COLLISION_CATEGORY.TABLE,
@@ -42,20 +39,20 @@ export function createFlippers(
   });
 
   const leftConstraint = Constraint.create({
-    pointA: { x: leftPivotX - FLIPPER_WIDTH / 3, y: bottomY },
+    pointA: { x: leftPivotX, y: bottomY },
     bodyB: leftBody,
-    pointB: { x: -FLIPPER_WIDTH / 3, y: 0 },
+    pointB: { x: FLIPPER_WIDTH / 3, y: 0 },
     length: 0,
-    stiffness: 0.9,
+    stiffness: 0.95,
   });
 
-  // Right flipper
-  const rightX = centerX + gap + FLIPPER_WIDTH / 2 - 15;
-  const rightPivotX = centerX + gap + FLIPPER_WIDTH / 2 - 15;
+  // Right flipper: pivot is at the inner end
+  const rightPivotX = centerX + spread;
+  const rightX = rightPivotX + FLIPPER_WIDTH / 3;
   const rightBody = Bodies.trapezoid(rightX, bottomY, FLIPPER_WIDTH, FLIPPER_HEIGHT, FLIPPER_SLOPE, {
-    density: 0.02,
-    friction: 0.5,
-    restitution: 0.1,
+    density: 0.025,
+    friction: 0.4,
+    restitution: 0.05,
     label: "flipper-right",
     collisionFilter: {
       category: COLLISION_CATEGORY.TABLE,
@@ -65,11 +62,11 @@ export function createFlippers(
   });
 
   const rightConstraint = Constraint.create({
-    pointA: { x: rightPivotX + FLIPPER_WIDTH / 3, y: bottomY },
+    pointA: { x: rightPivotX, y: bottomY },
     bodyB: rightBody,
-    pointB: { x: FLIPPER_WIDTH / 3, y: 0 },
+    pointB: { x: -FLIPPER_WIDTH / 3, y: 0 },
     length: 0,
-    stiffness: 0.9,
+    stiffness: 0.95,
   });
 
   return [
@@ -77,41 +74,33 @@ export function createFlippers(
       body: leftBody,
       constraint: leftConstraint,
       side: "left",
-      restAngle: 0.5,
-      activeAngle: -0.6,
+      restAngle: 0.45,     // resting down
+      activeAngle: -0.55,   // flipped up
     },
     {
       body: rightBody,
       constraint: rightConstraint,
       side: "right",
-      restAngle: -0.5,
-      activeAngle: 0.6,
+      restAngle: -0.45,
+      activeAngle: 0.55,
     },
   ];
 }
 
-export function addFlippersToWorld(
-  world: Matter.World,
-  flippers: Flipper[]
-): void {
+export function addFlippersToWorld(world: Matter.World, flippers: Flipper[]) {
   for (const f of flippers) {
     World.add(world, [f.body, f.constraint]);
     Body.setAngle(f.body, f.restAngle);
   }
 }
 
-export function updateFlipper(
-  flipper: Flipper,
-  isActive: boolean
-): void {
+export function updateFlipper(flipper: Flipper, isActive: boolean) {
   const { body, side, restAngle, activeAngle } = flipper;
 
   if (isActive) {
-    const direction = side === "left" ? -ACTIVE_ANGULAR_VELOCITY : ACTIVE_ANGULAR_VELOCITY;
-    Body.setAngularVelocity(body, direction);
+    Body.setAngularVelocity(body, side === "left" ? -ACTIVE_ANGULAR_VELOCITY : ACTIVE_ANGULAR_VELOCITY);
   } else {
-    const direction = side === "left" ? REST_ANGULAR_VELOCITY : -REST_ANGULAR_VELOCITY;
-    Body.setAngularVelocity(body, direction);
+    Body.setAngularVelocity(body, side === "left" ? REST_ANGULAR_VELOCITY : -REST_ANGULAR_VELOCITY);
   }
 
   // Clamp angle

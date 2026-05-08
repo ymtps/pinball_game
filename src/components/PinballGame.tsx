@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
-import { createEngine, createWalls, createDrainSensor, setupSpeedLimit } from "../game/engine";
+import { createEngine, createWalls, createDrainSensor, setupSpeedLimit, PLAYFIELD_WIDTH } from "../game/engine";
 import type { GameLoop } from "../game/gameLoop";
 import { createGameLoop } from "../game/gameLoop";
 import { BallManager } from "../game/ball";
@@ -94,10 +94,10 @@ export function PinballGame() {
         dropTargetState.add(targetIndex);
         if (dropTargetState.size >= 4 && !gameState.multiballActive) {
           gameState.activateMultiball();
-          ballManager.addBall(DEFAULT_CONFIG.width / 2, 50);
+          ballManager.addBall(PLAYFIELD_WIDTH / 2, 50);
           gameState.addScore(1000);
-          addScorePopup(DEFAULT_CONFIG.width / 2, 50, 1000);
-          addHitEffect(DEFAULT_CONFIG.width / 2, 50, "#ff00ff");
+          addScorePopup(PLAYFIELD_WIDTH / 2, 50, 1000);
+          addHitEffect(PLAYFIELD_WIDTH / 2, 50, "#ff00ff");
           setStatusText("MULTIBALL!");
         }
       }

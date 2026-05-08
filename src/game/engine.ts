@@ -4,6 +4,29 @@ import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
 
 const { Engine, Bodies, Body, Events } = Matter;
 
+// Playfield = the area where the ball actually plays (excludes launch lane)
+export const PLAYFIELD_WIDTH = 340;
+
+// Launch lane on the right side
+export const LAUNCH_LANE = {
+  wallX: PLAYFIELD_WIDTH,
+  laneWidth: DEFAULT_CONFIG.width - PLAYFIELD_WIDTH,
+  centerX: PLAYFIELD_WIDTH + (DEFAULT_CONFIG.width - PLAYFIELD_WIDTH) / 2,
+  gateY: 35,
+};
+
+// Flipper / drain area geometry
+const FLIPPER_Y = 640;
+const DRAIN_CENTER_X = PLAYFIELD_WIDTH / 2;  // 170
+const DRAIN_GAP = 50; // gap between flippers where ball drains
+
+export const TABLE_GEOMETRY = {
+  playfieldWidth: PLAYFIELD_WIDTH,
+  flipperY: FLIPPER_Y,
+  drainCenterX: DRAIN_CENTER_X,
+  drainGap: DRAIN_GAP,
+};
+
 export function createEngine() {
   return Engine.create({
     gravity: { x: 0, y: 1, scale: 0.001 },
@@ -12,40 +35,51 @@ export function createEngine() {
   });
 }
 
-// Launch lane dimensions
-export const LAUNCH_LANE = {
-  wallX: 355,       // x position of the separator wall
-  laneWidth: 45,    // width of the lane (from wallX to right wall)
-  centerX: 377,     // center of launch lane for ball spawn
-  gateY: 40,        // y position of the top gate/curve
-};
-
 export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
-  const { width, height, wallThickness: t } = config;
+  const { height, wallThickness: t } = config;
   const half = t / 2;
+  const pW = PLAYFIELD_WIDTH;
 
   const walls = [
-    // Top wall (only covers main playfield, not launch lane)
-    Bodies.rectangle((LAUNCH_LANE.wallX) / 2, -half, LAUNCH_LANE.wallX + t, t, { isStatic: true, label: "wall" }),
+    // ── Outer walls ──
+    // Top wall (playfield only)
+    Bodies.rectangle(pW / 2, -half, pW + t, t, {
+      isStatic: true, label: "wall",
+    }),
     // Left wall
-    Bodies.rectangle(-half, height / 2, t, height + t * 2, { isStatic: true, label: "wall" }),
-    // Right wall (outer wall of launch lane)
-    Bodies.rectangle(width + half, height / 2, t, height + t * 2, { isStatic: true, label: "wall" }),
-
-    // ── Launch lane ──
-    // Separator wall (left wall of launch lane) - from below top curve down to above drain
-    Bodies.rectangle(LAUNCH_LANE.wallX, height * 0.45, t * 0.6, height * 0.75, { isStatic: true, label: "wall" }),
-
-    // Top curve piece - angled wall to redirect ball from launch lane into playfield
-    Bodies.rectangle(LAUNCH_LANE.wallX + 10, LAUNCH_LANE.gateY, LAUNCH_LANE.laneWidth + 10, t * 0.6, {
-      isStatic: true, label: "wall", angle: 0.15,
+    Bodies.rectangle(-half, height / 2, t, height + t * 2, {
+      isStatic: true, label: "wall",
+    }),
+    // Right outer wall (launch lane right side)
+    Bodies.rectangle(config.width + half, height / 2, t, height + t * 2, {
+      isStatic: true, label: "wall",
     }),
 
-    // Small bottom wall for launch lane (keeps ball in lane before launch)
-    Bodies.rectangle(LAUNCH_LANE.centerX, height - 30, LAUNCH_LANE.laneWidth, t * 0.6, { isStatic: true, label: "wall" }),
+    // ── Launch lane ──
+    // Separator wall: runs from top curve down to flipper area
+    Bodies.rectangle(LAUNCH_LANE.wallX, height * 0.48, t * 0.5, height * 0.8, {
+      isStatic: true, label: "wall",
+    }),
+    // Top curve: angled wall redirecting ball from lane into playfield
+    Bodies.rectangle(LAUNCH_LANE.wallX - 5, LAUNCH_LANE.gateY, LAUNCH_LANE.laneWidth + 30, t * 0.5, {
+      isStatic: true, label: "wall", angle: 0.2,
+    }),
+    // Bottom stop: prevents ball from falling out of lane
+    Bodies.rectangle(LAUNCH_LANE.centerX, height - 25, LAUNCH_LANE.laneWidth - 2, t * 0.5, {
+      isStatic: true, label: "wall",
+    }),
+
+    // ── V-shaped drain area ──
+    // Left outer wall angling inward toward drain
+    Bodies.rectangle(28, height * 0.82, t * 0.5, 160, {
+      isStatic: true, label: "wall", angle: 0.35,
+    }),
+    // Right outer wall angling inward toward drain
+    Bodies.rectangle(pW - 28, height * 0.82, t * 0.5, 160, {
+      isStatic: true, label: "wall", angle: -0.35,
+    }),
   ];
 
-  // Set collision filter for table layer
   walls.forEach((wall) => {
     wall.collisionFilter = {
       category: COLLISION_CATEGORY.TABLE,
@@ -58,8 +92,8 @@ export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
 
 export function createDrainSensor(config: GameConfig = DEFAULT_CONFIG) {
   const { height } = config;
-  // Drain only covers main playfield area (not launch lane)
-  return Bodies.rectangle(LAUNCH_LANE.wallX / 2, height + 30, LAUNCH_LANE.wallX + 20, 20, {
+  // Narrow drain sensor below flippers
+  return Bodies.rectangle(DRAIN_CENTER_X, height + 20, PLAYFIELD_WIDTH, 30, {
     isStatic: true,
     isSensor: true,
     label: "drain",
@@ -84,11 +118,9 @@ export function setupSpeedLimit(
   maxSpeed: number = DEFAULT_CONFIG.maxBallSpeed
 ) {
   Events.on(engine, "beforeUpdate", () => {
-    const bodies = engine.world.bodies;
-    for (const body of bodies) {
+    for (const body of engine.world.bodies) {
       if (body.label === "ball") {
-        const speed = Body.getSpeed(body);
-        if (speed > maxSpeed) {
+        if (Body.getSpeed(body) > maxSpeed) {
           Body.setSpeed(body, maxSpeed);
         }
       }

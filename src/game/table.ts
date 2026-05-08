@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
+import { PLAYFIELD_WIDTH, TABLE_GEOMETRY } from "./engine";
 
 const { Bodies, Body, World, Events } = Matter;
 
@@ -15,7 +16,6 @@ export interface TableElements {
   allBodies: Matter.Body[];
 }
 
-// Bodies queued for removal (deferred from collisionStart)
 let removalQueue: Matter.Body[] = [];
 
 export function processRemovalQueue(world: Matter.World) {
@@ -26,175 +26,148 @@ export function processRemovalQueue(world: Matter.World) {
 }
 
 export function createTableElements(config: GameConfig = DEFAULT_CONFIG): TableElements {
-  const { width, height } = config;
+  const { height } = config;
+  const pW = PLAYFIELD_WIDTH; // playfield width (excludes launch lane)
+  const cx = pW / 2;          // playfield center x
   const allBodies: Matter.Body[] = [];
 
-  // ── Bumpers (R5) ──
-  const bumperPositions = [
-    { x: width * 0.3, y: height * 0.25 },
-    { x: width * 0.7, y: height * 0.25 },
-    { x: width * 0.5, y: height * 0.35 },
-  ];
-  const bumpers = bumperPositions.map((pos) => {
-    const bumper = Bodies.circle(pos.x, pos.y, 20, {
-      isStatic: true,
-      restitution: 0.8,
-      label: "bumper",
-      collisionFilter: {
-        category: COLLISION_CATEGORY.TABLE,
-        mask: COLLISION_CATEGORY.TABLE,
-      },
-    });
-    return bumper;
-  });
+  const tableFilter = {
+    category: COLLISION_CATEGORY.TABLE,
+    mask: COLLISION_CATEGORY.TABLE,
+  };
+
+  // ── Bumpers (R5) ── three bumpers in a triangle formation
+  const bumpers = [
+    { x: cx - 60, y: 190 },
+    { x: cx + 60, y: 190 },
+    { x: cx,      y: 270 },
+  ].map((pos) =>
+    Bodies.circle(pos.x, pos.y, 22, {
+      isStatic: true, restitution: 0.8, label: "bumper",
+      collisionFilter: tableFilter,
+    })
+  );
   allBodies.push(...bumpers);
 
-  // ── Slingshots (R6) ──
-  const slingshotData = [
-    { x: width * 0.18, y: height * 0.72, side: "left" },
-    { x: width * 0.82, y: height * 0.72, side: "right" },
-  ];
-  const slingshots = slingshotData.map((data) => {
-    const body = Bodies.fromVertices(data.x, data.y, [[
-      { x: 0, y: -30 },
-      { x: data.side === "left" ? 25 : -25, y: 30 },
-      { x: 0, y: 30 },
+  // ── Slingshots (R6) ── triangular kickers above flippers
+  const slingY = 560;
+  const slingshots = [
+    { x: 55,      side: "left" },
+    { x: pW - 55, side: "right" },
+  ].map((data) => {
+    const dir = data.side === "left" ? 1 : -1;
+    const body = Bodies.fromVertices(data.x, slingY, [[
+      { x: 0, y: -28 },
+      { x: dir * 22, y: 20 },
+      { x: 0, y: 28 },
     ]], {
-      isStatic: true,
-      label: "slingshot",
-      collisionFilter: {
-        category: COLLISION_CATEGORY.TABLE,
-        mask: COLLISION_CATEGORY.TABLE,
-      },
+      isStatic: true, label: "slingshot",
+      collisionFilter: tableFilter,
     });
-    const sensor = Bodies.circle(data.x + (data.side === "left" ? 12 : -12), data.y, 25, {
-      isStatic: true,
-      isSensor: true,
-      label: "slingshot-sensor",
-      collisionFilter: {
-        category: COLLISION_CATEGORY.TABLE,
-        mask: COLLISION_CATEGORY.TABLE,
-      },
+    const sensor = Bodies.circle(data.x + dir * 10, slingY, 22, {
+      isStatic: true, isSensor: true, label: "slingshot-sensor",
+      collisionFilter: tableFilter,
     });
     (sensor as any).slingshotSide = data.side;
     allBodies.push(body, sensor);
     return { body, sensor };
   });
 
-  // ── Lanes (R7) ──
+  // ── Lanes (R7) ── two lanes on left and right upper area
   const laneWalls: Matter.Body[] = [];
 
-  // Left lane
+  // Left lane (pair of parallel walls)
   laneWalls.push(
-    Bodies.rectangle(width * 0.08, height * 0.4, 8, 120, {
-      isStatic: true, label: "lane-wall", angle: 0.1,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
+    Bodies.rectangle(30, 340, 6, 110, {
+      isStatic: true, label: "lane-wall", angle: 0.08,
+      collisionFilter: tableFilter,
     }),
-    Bodies.rectangle(width * 0.16, height * 0.4, 8, 120, {
-      isStatic: true, label: "lane-wall", angle: 0.1,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
+    Bodies.rectangle(55, 340, 6, 110, {
+      isStatic: true, label: "lane-wall", angle: 0.08,
+      collisionFilter: tableFilter,
     }),
   );
 
   // Right lane
   laneWalls.push(
-    Bodies.rectangle(width * 0.84, height * 0.4, 8, 120, {
-      isStatic: true, label: "lane-wall", angle: -0.1,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
+    Bodies.rectangle(pW - 30, 340, 6, 110, {
+      isStatic: true, label: "lane-wall", angle: -0.08,
+      collisionFilter: tableFilter,
     }),
-    Bodies.rectangle(width * 0.92, height * 0.4, 8, 120, {
-      isStatic: true, label: "lane-wall", angle: -0.1,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
+    Bodies.rectangle(pW - 55, 340, 6, 110, {
+      isStatic: true, label: "lane-wall", angle: -0.08,
+      collisionFilter: tableFilter,
     }),
   );
 
-  // Lane sensors at bottom of each lane
-  const laneSensorLeft = Bodies.rectangle(width * 0.12, height * 0.48, 25, 5, {
-    isStatic: true, isSensor: true, label: "lane-sensor",
-    collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
-  });
-  const laneSensorRight = Bodies.rectangle(width * 0.88, height * 0.48, 25, 5, {
-    isStatic: true, isSensor: true, label: "lane-sensor",
-    collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
-  });
-  laneWalls.push(laneSensorLeft, laneSensorRight);
+  // Lane scoring sensors
+  laneWalls.push(
+    Bodies.rectangle(42, 400, 20, 5, {
+      isStatic: true, isSensor: true, label: "lane-sensor",
+      collisionFilter: tableFilter,
+    }),
+    Bodies.rectangle(pW - 42, 400, 20, 5, {
+      isStatic: true, isSensor: true, label: "lane-sensor",
+      collisionFilter: tableFilter,
+    }),
+  );
   allBodies.push(...laneWalls);
 
-  // ── Drop Targets (R8) ──
-  const dropTargetPositions = [
-    { x: width * 0.35, y: height * 0.5 },
-    { x: width * 0.45, y: height * 0.48 },
-    { x: width * 0.55, y: height * 0.48 },
-    { x: width * 0.65, y: height * 0.5 },
-  ];
-  const dropTargets = dropTargetPositions.map((pos, i) => {
-    const target = Bodies.rectangle(pos.x, pos.y, 20, 8, {
-      isStatic: true,
-      label: "drop-target",
-      collisionFilter: {
-        category: COLLISION_CATEGORY.TABLE,
-        mask: COLLISION_CATEGORY.TABLE,
-      },
+  // ── Drop Targets (R8) ── row of 4 across the middle
+  const dropY = 420;
+  const dropSpacing = 40;
+  const dropStartX = cx - (dropSpacing * 1.5);
+  const dropTargets = [0, 1, 2, 3].map((i) => {
+    const target = Bodies.rectangle(dropStartX + i * dropSpacing, dropY, 22, 7, {
+      isStatic: true, label: "drop-target",
+      collisionFilter: tableFilter,
     });
     (target as any).targetIndex = i;
     return target;
   });
   allBodies.push(...dropTargets);
 
-  // ── Ramp (R9) - layer switching approach ──
-  const rampEntrance = Bodies.rectangle(width * 0.25, height * 0.55, 30, 5, {
-    isStatic: true,
-    isSensor: true,
-    label: "ramp-entrance",
-    collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE },
+  // ── Ramp (R9) ── left side ramp entrance, exits top right
+  const rampEntrance = Bodies.rectangle(cx - 80, 460, 28, 5, {
+    isStatic: true, isSensor: true, label: "ramp-entrance",
+    collisionFilter: tableFilter,
   });
-
-  const rampExit = Bodies.rectangle(width * 0.75, height * 0.2, 30, 5, {
-    isStatic: true,
-    isSensor: true,
-    label: "ramp-exit",
+  const rampExit = Bodies.rectangle(cx + 80, 140, 28, 5, {
+    isStatic: true, isSensor: true, label: "ramp-exit",
     collisionFilter: { category: COLLISION_CATEGORY.RAMP, mask: COLLISION_CATEGORY.RAMP },
   });
-
-  // Ramp walls (only collide on RAMP layer)
   const rampWalls = [
-    Bodies.rectangle(width * 0.3, height * 0.38, 8, 200, {
-      isStatic: true, label: "ramp-wall", angle: -0.2,
+    Bodies.rectangle(cx - 55, 320, 6, 280, {
+      isStatic: true, label: "ramp-wall", angle: -0.12,
       collisionFilter: { category: COLLISION_CATEGORY.RAMP, mask: COLLISION_CATEGORY.RAMP },
     }),
-    Bodies.rectangle(width * 0.45, height * 0.38, 8, 200, {
-      isStatic: true, label: "ramp-wall", angle: -0.2,
+    Bodies.rectangle(cx - 25, 320, 6, 280, {
+      isStatic: true, label: "ramp-wall", angle: -0.12,
       collisionFilter: { category: COLLISION_CATEGORY.RAMP, mask: COLLISION_CATEGORY.RAMP },
     }),
   ];
-
   allBodies.push(rampEntrance, rampExit, ...rampWalls);
 
-  // ── Guide walls for the bottom area ──
-  // Left guide wall (angled to funnel ball toward flippers)
+  // ── Guide walls / inlane walls ──
+  // These guide the ball from slingshot area down to flippers
+  // Left inlane wall
   allBodies.push(
-    Bodies.rectangle(width * 0.08, height * 0.85, 8, 100, {
-      isStatic: true, label: "wall", angle: 0.4,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
+    Bodies.rectangle(75, 605, 6, 60, {
+      isStatic: true, label: "wall", angle: 0.15,
+      collisionFilter: { ...tableFilter, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
     }),
   );
-  // Right guide wall (angled toward drain, ends before launch lane)
+  // Right inlane wall
   allBodies.push(
-    Bodies.rectangle(width * 0.82, height * 0.85, 8, 100, {
-      isStatic: true, label: "wall", angle: -0.4,
-      collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
+    Bodies.rectangle(pW - 75, 605, 6, 60, {
+      isStatic: true, label: "wall", angle: -0.15,
+      collisionFilter: { ...tableFilter, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
     }),
   );
 
   return {
-    bumpers,
-    slingshots,
-    lanes: laneWalls,
-    dropTargets,
-    rampEntrance,
-    rampExit,
-    rampWalls,
-    allBodies,
+    bumpers, slingshots, lanes: laneWalls, dropTargets,
+    rampEntrance, rampExit, rampWalls, allBodies,
   };
 }
 
@@ -206,58 +179,49 @@ export function setupTableCollisions(
 ) {
   Events.on(engine, "collisionStart", (event) => {
     for (const pair of event.pairs) {
-      const bodyA = pair.bodyA;
-      const bodyB = pair.bodyB;
-      const labels = [bodyA.label, bodyB.label];
-      const ballBody = bodyA.label === "ball" ? bodyA : bodyB.label === "ball" ? bodyB : null;
+      const ballBody = pair.bodyA.label === "ball" ? pair.bodyA
+        : pair.bodyB.label === "ball" ? pair.bodyB : null;
       if (!ballBody) continue;
-      const otherBody = ballBody === bodyA ? bodyB : bodyA;
+      const other = ballBody === pair.bodyA ? pair.bodyB : pair.bodyA;
 
       try {
-        // Bumper hit
-        if (otherBody.label === "bumper") {
-          // Apply force away from bumper
-          const dx = ballBody.position.x - otherBody.position.x;
-          const dy = ballBody.position.y - otherBody.position.y;
+        if (other.label === "bumper") {
+          const dx = ballBody.position.x - other.position.x;
+          const dy = ballBody.position.y - other.position.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const forceMag = 0.008;
           Body.applyForce(ballBody, ballBody.position, {
-            x: (dx / dist) * forceMag,
-            y: (dy / dist) * forceMag,
+            x: (dx / dist) * 0.008,
+            y: (dy / dist) * 0.008,
           });
-          onScore(100, "bumper", otherBody.position);
+          onScore(100, "bumper", other.position);
         }
 
-        // Slingshot hit
-        if (otherBody.label === "slingshot-sensor") {
-          const side = (otherBody as any).slingshotSide;
-          const forceX = side === "left" ? 0.005 : -0.005;
-          Body.applyForce(ballBody, ballBody.position, { x: forceX, y: -0.003 });
-          onScore(50, "slingshot", otherBody.position);
+        if (other.label === "slingshot-sensor") {
+          const side = (other as any).slingshotSide;
+          Body.applyForce(ballBody, ballBody.position, {
+            x: side === "left" ? 0.005 : -0.005,
+            y: -0.003,
+          });
+          onScore(50, "slingshot", other.position);
         }
 
-        // Lane sensor
-        if (otherBody.label === "lane-sensor") {
-          onScore(200, "lane", otherBody.position);
+        if (other.label === "lane-sensor") {
+          onScore(200, "lane", other.position);
         }
 
-        // Drop target
-        if (otherBody.label === "drop-target") {
-          const targetIndex = (otherBody as any).targetIndex;
-          removalQueue.push(otherBody);
-          onScore(500, "drop-target", otherBody.position);
-          onDropTargetHit(targetIndex);
+        if (other.label === "drop-target") {
+          removalQueue.push(other);
+          onScore(500, "drop-target", other.position);
+          onDropTargetHit((other as any).targetIndex);
         }
 
-        // Ramp entrance - switch ball to RAMP layer
-        if (otherBody.label === "ramp-entrance") {
+        if (other.label === "ramp-entrance") {
           ballBody.collisionFilter.category = COLLISION_CATEGORY.RAMP;
           ballBody.collisionFilter.mask = COLLISION_CATEGORY.RAMP;
-          onScore(300, "ramp", otherBody.position);
+          onScore(300, "ramp", other.position);
         }
 
-        // Ramp exit - switch ball back to TABLE layer
-        if (otherBody.label === "ramp-exit") {
+        if (other.label === "ramp-exit") {
           ballBody.collisionFilter.category = COLLISION_CATEGORY.TABLE;
           ballBody.collisionFilter.mask = COLLISION_CATEGORY.TABLE;
         }
