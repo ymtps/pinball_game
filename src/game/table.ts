@@ -178,9 +178,9 @@ export function createTableElements(config: GameConfig = DEFAULT_CONFIG): TableE
       collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
     }),
   );
-  // Right guide wall
+  // Right guide wall (angled toward drain, ends before launch lane)
   allBodies.push(
-    Bodies.rectangle(width * 0.92, height * 0.85, 8, 100, {
+    Bodies.rectangle(width * 0.82, height * 0.85, 8, 100, {
       isStatic: true, label: "wall", angle: -0.4,
       collisionFilter: { category: COLLISION_CATEGORY.TABLE, mask: COLLISION_CATEGORY.TABLE | COLLISION_CATEGORY.RAMP },
     }),

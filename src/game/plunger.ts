@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG } from "./types";
+import { LAUNCH_LANE } from "./engine";
 
 const { Body } = Matter;
 
@@ -20,8 +21,8 @@ export class Plunger {
 
   constructor(config: GameConfig = DEFAULT_CONFIG) {
     this.config = config;
-    this.launchX = config.width - 30;
-    this.launchY = config.height - 100;
+    this.launchX = LAUNCH_LANE.centerX;
+    this.launchY = config.height - 55;
   }
 
   update(spacePressed: boolean, ball: Matter.Body | null): boolean {

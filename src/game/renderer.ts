@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
+import { LAUNCH_LANE } from "./engine";
 
 // Visual effects queue
 interface HitEffect {
@@ -318,12 +319,18 @@ function renderRampWall(ctx: CanvasRenderingContext2D, body: Matter.Body) {
 }
 
 function renderPlungerGuide(ctx: CanvasRenderingContext2D, config: GameConfig) {
-  const x = config.width - 30;
-  const barY = config.height - 150;
-  const barHeight = 80;
+  // Draw launch lane background
+  const laneX = LAUNCH_LANE.wallX;
+  const laneW = config.width - laneX;
+  ctx.fillStyle = "rgba(20,20,50,0.5)";
+  ctx.fillRect(laneX, 0, laneW, config.height);
+
+  // Plunger indicator
+  const x = LAUNCH_LANE.centerX;
+  const barY = config.height - 100;
+  const barHeight = 60;
   const barWidth = 10;
 
-  // Plunger track
   ctx.fillStyle = "#222";
   ctx.fillRect(x - barWidth / 2, barY, barWidth, barHeight);
   ctx.strokeStyle = "#444";
