@@ -12,7 +12,6 @@ import { GameState } from "../game/gameState";
 import { createTableElements, setupTableCollisions, processRemovalQueue, resetDropTargets } from "../game/table";
 import { addHitEffect, addScorePopup } from "../game/renderer";
 import { initAudio, playSound } from "../game/soundManager";
-import type { TableElements } from "../game/table";
 import type { GamePhase } from "../game/types";
 import { DEFAULT_CONFIG } from "../game/types";
 
@@ -29,54 +28,43 @@ export function PinballGame() {
   const [phase, setPhase] = useState<GamePhase>("title");
   const [score, setScore] = useState(0);
   const [ballInfo, setBallInfo] = useState({ current: 1, remaining: 3 });
+  const [statusText, setStatusText] = useState("Press START");
 
-  // Track whether ball is in play (launched from plunger)
   const ballLaunchedRef = useRef(false);
-  // Track if we're waiting for plunger launch
   const waitingForLaunchRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const gameState = gameStateRef.current;
     const plunger = plungerRef.current;
 
-    // Set up callbacks from game state to React
     gameState.setCallbacks({
       onScoreChange: (s) => setScore(s),
       onBallChange: (current, remaining) => setBallInfo({ current, remaining }),
-      onGameOver: () => setPhase("gameOver"),
-      onGameStart: () => setPhase("playing"),
+      onGameOver: () => { setPhase("gameOver"); setStatusText("GAME OVER"); },
+      onGameStart: () => { setPhase("playing"); setStatusText("Launch Ball!"); },
     });
 
-    // Create engine
     const engine = createEngine();
     engineRef.current = engine;
 
-    // Create walls and drain sensor
     const walls = createWalls();
     const drain = createDrainSensor();
     World.add(engine.world, [...walls, drain]);
-
-    // Setup speed limit
     setupSpeedLimit(engine);
 
-    // Create flippers
     const flippers: Flipper[] = createFlippers();
     addFlippersToWorld(engine.world, flippers);
 
-    // Create table elements
     const tableElements = createTableElements();
     World.add(engine.world, tableElements.allBodies);
 
-    // Track drop target state
     const dropTargetState = new Set<number>();
 
-    // Setup table collision handlers
     setupTableCollisions(
       engine,
       tableElements,
@@ -85,73 +73,60 @@ export function PinballGame() {
           gameState.addScore(points);
           addScorePopup(position.x, position.y, points);
           const colors: Record<string, string> = {
-            bumper: "#ff4444",
+            bumper: "#ff6633",
             slingshot: "#ffaa00",
             lane: "#4488ff",
             "drop-target": "#44ff44",
             ramp: "#aa44ff",
           };
           addHitEffect(position.x, position.y, colors[label] || "#ff0");
-
-          // Sound effects
           const soundMap: Record<string, "bumper" | "slingshot" | "dropTarget" | "score"> = {
-            bumper: "bumper",
-            slingshot: "slingshot",
-            "drop-target": "dropTarget",
-            lane: "score",
-            ramp: "score",
+            bumper: "bumper", slingshot: "slingshot",
+            "drop-target": "dropTarget", lane: "score", ramp: "score",
           };
           playSound(soundMap[label] || "score");
+
+          if (label === "ramp") setStatusText("Ramp Bonus!");
+          else if (label === "lane") setStatusText("Lane Complete!");
         }
       },
       (targetIndex) => {
         dropTargetState.add(targetIndex);
-        // Check if all drop targets are destroyed (4 total)
         if (dropTargetState.size >= 4 && !gameState.multiballActive) {
-          // Activate multiball!
           gameState.activateMultiball();
-          // Spawn second ball from top
           ballManager.addBall(DEFAULT_CONFIG.width / 2, 50);
-          gameState.addScore(1000); // Bonus for multiball
+          gameState.addScore(1000);
           addScorePopup(DEFAULT_CONFIG.width / 2, 50, 1000);
           addHitEffect(DEFAULT_CONFIG.width / 2, 50, "#ff00ff");
+          setStatusText("MULTIBALL!");
         }
       }
     );
 
-    // Create ball manager
     const ballManager = new BallManager(engine.world);
     ballManagerRef.current = ballManager;
 
-    // Setup input
     const input = createInputHandler();
     input.attach();
 
-    // Drain detection
     Events.on(engine, "collisionStart", (event) => {
       for (const pair of event.pairs) {
         const labels = [pair.bodyA.label, pair.bodyB.label];
         if (labels.includes("drain") && labels.includes("ball")) {
           const ballBody = pair.bodyA.label === "ball" ? pair.bodyA : pair.bodyB;
-
-          // Queue removal for next frame
           setTimeout(() => {
             ballManager.removeBall(ballBody);
             ballLaunchedRef.current = false;
             playSound("drain");
-
             if (gameState.phase === "playing") {
               const result = gameState.drainBall();
               if (result === "continue") {
-                // Reset drop targets and spawn new ball
                 resetDropTargets(engine.world, tableElements.dropTargets);
                 dropTargetState.clear();
                 waitingForLaunchRef.current = true;
                 spawnBallAtPlunger();
-              } else if (result === "multiball-continue") {
-                // Still have balls in multiball, don't spawn a new one
+                setStatusText("Launch Ball!");
               }
-              // "gameover" - game state already handled
             }
           }, 0);
         }
@@ -165,27 +140,17 @@ export function PinballGame() {
       plunger.reset();
     }
 
-    // Game loop with input processing
     const gameLoop = createGameLoop(engine, ctx, DEFAULT_CONFIG, () => {
-      // Process deferred body removals
       processRemovalQueue(engine.world);
-
-      // Update flippers with sound
       for (const flipper of flippers) {
-        const isActive =
-          flipper.side === "left"
-            ? input.keyState.leftFlipper
-            : input.keyState.rightFlipper;
+        const isActive = flipper.side === "left"
+          ? input.keyState.leftFlipper : input.keyState.rightFlipper;
         const wasAtRest = flipper.side === "left"
           ? flipper.body.angle >= flipper.restAngle - 0.05
           : flipper.body.angle <= flipper.restAngle + 0.05;
         updateFlipper(flipper, isActive);
-        if (isActive && wasAtRest) {
-          playSound("flipper");
-        }
+        if (isActive && wasAtRest) playSound("flipper");
       }
-
-      // Plunger logic - only when ball hasn't been launched yet
       if (gameState.phase === "playing" && !ballLaunchedRef.current) {
         const balls = ballManager.getBalls();
         const currentBall = balls.length > 0 ? balls[0] : null;
@@ -193,6 +158,7 @@ export function PinballGame() {
         if (launched) {
           ballLaunchedRef.current = true;
           playSound("launch");
+          setStatusText("Good Luck!");
         }
       }
     });
@@ -213,10 +179,8 @@ export function PinballGame() {
     const gameState = gameStateRef.current;
     const ballManager = ballManagerRef.current;
     const plunger = plungerRef.current;
-
     if (!ballManager) return;
-
-    initAudio(); // Resume AudioContext on user gesture
+    initAudio();
     gameState.startGame();
     ballManager.removeAllBalls();
     ballManager.addBall(plunger.launchX, plunger.launchY);
@@ -225,85 +189,199 @@ export function PinballGame() {
   }
 
   function handleRestart() {
-    const gameState = gameStateRef.current;
-    gameState.reset();
+    gameStateRef.current.reset();
     setPhase("title");
+    setStatusText("Press START");
   }
 
+  const sidebarW = 200;
+
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#0a0a1a", position: "relative" }}>
-      <div style={{ position: "relative" }}>
-        <canvas
-          ref={canvasRef}
-          width={DEFAULT_CONFIG.width}
-          height={DEFAULT_CONFIG.height}
-          style={{ border: "2px solid #333", display: "block" }}
-        />
+    <div style={{
+      display: "flex", justifyContent: "center", alignItems: "center",
+      height: "100vh", backgroundColor: "#0a0a0a",
+    }}>
+      <div style={{ display: "flex", border: "3px solid #2a2a3a", backgroundColor: "#111118" }}>
+        {/* ── Table ── */}
+        <div style={{ position: "relative" }}>
+          <canvas
+            ref={canvasRef}
+            width={DEFAULT_CONFIG.width}
+            height={DEFAULT_CONFIG.height}
+            style={{ display: "block" }}
+          />
 
-        {/* HUD */}
-        {phase === "playing" && (
-          <div style={{
-            position: "absolute", top: 10, left: 10, right: 10,
-            display: "flex", justifyContent: "space-between",
-            color: "#fff", fontFamily: "monospace", fontSize: "14px",
-            pointerEvents: "none",
-          }}>
-            <span>SCORE: {score.toLocaleString()}</span>
-            <span>BALL {ballInfo.current}/{gameStateRef.current.totalBalls}</span>
-          </div>
-        )}
+          {/* Title overlay */}
+          {phase === "title" && (
+            <div style={overlayStyle}>
+              <div style={{ fontSize: "36px", fontWeight: "bold", color: "#cc88ff", textShadow: "0 0 20px #8844cc", letterSpacing: "4px" }}>
+                PINBALL
+              </div>
+              <div style={{ fontSize: "12px", color: "#8866aa", marginTop: "5px", letterSpacing: "2px" }}>
+                SPACE MISSION
+              </div>
+              <button onClick={handleStart} style={buttonStyle}>
+                START GAME
+              </button>
+              <div style={{ fontSize: "11px", color: "#555", marginTop: "15px" }}>
+                Z/X or Arrow Keys: Flippers
+              </div>
+              <div style={{ fontSize: "11px", color: "#555", marginTop: "3px" }}>
+                Space: Launch Ball
+              </div>
+            </div>
+          )}
 
-        {/* Title Screen */}
-        {phase === "title" && (
-          <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.8)", color: "#fff",
-          }}>
-            <h1 style={{ fontSize: "32px", marginBottom: "20px", fontFamily: "monospace" }}>PINBALL</h1>
-            <button
-              onClick={handleStart}
-              style={{
-                padding: "12px 32px", fontSize: "18px", cursor: "pointer",
-                backgroundColor: "#333", color: "#fff", border: "2px solid #666",
-                fontFamily: "monospace",
-              }}
-            >
-              START
-            </button>
-            <p style={{ marginTop: "20px", fontSize: "12px", opacity: 0.6, fontFamily: "monospace" }}>
-              Arrow Keys / Z,X: Flippers | Space: Launch
-            </p>
-          </div>
-        )}
+          {/* Game over overlay */}
+          {phase === "gameOver" && (
+            <div style={overlayStyle}>
+              <div style={{ fontSize: "28px", fontWeight: "bold", color: "#ff6644", textShadow: "0 0 15px #cc3322" }}>
+                GAME OVER
+              </div>
+              <div style={{ fontSize: "22px", color: "#ffcc44", marginTop: "10px" }}>
+                {score.toLocaleString()}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginTop: "5px" }}>
+                HIGH SCORE: {gameStateRef.current.highScore.toLocaleString()}
+              </div>
+              <button onClick={handleRestart} style={buttonStyle}>
+                PLAY AGAIN
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* Game Over Screen */}
-        {phase === "gameOver" && (
+        {/* ── Sidebar ── */}
+        <div style={{
+          width: sidebarW, display: "flex", flexDirection: "column",
+          backgroundColor: "#111118", fontFamily: "monospace",
+          borderLeft: "2px solid #2a2a3a",
+        }}>
+          {/* Logo area */}
           <div style={{
-            position: "absolute", inset: 0,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.8)", color: "#fff",
+            padding: "15px 10px",
+            borderBottom: "2px solid #2a2a3a",
+            textAlign: "center",
+            background: "linear-gradient(180deg, #151528 0%, #0d0d1a 100%)",
           }}>
-            <h1 style={{ fontSize: "28px", marginBottom: "10px", fontFamily: "monospace" }}>GAME OVER</h1>
-            <p style={{ fontSize: "20px", marginBottom: "5px", fontFamily: "monospace" }}>
-              SCORE: {score.toLocaleString()}
-            </p>
-            <p style={{ fontSize: "14px", marginBottom: "20px", fontFamily: "monospace", opacity: 0.7 }}>
-              HIGH SCORE: {gameStateRef.current.highScore.toLocaleString()}
-            </p>
-            <button
-              onClick={handleRestart}
-              style={{
-                padding: "12px 32px", fontSize: "18px", cursor: "pointer",
-                backgroundColor: "#333", color: "#fff", border: "2px solid #666",
-                fontFamily: "monospace",
-              }}
-            >
-              REPLAY
-            </button>
+            <div style={{ fontSize: "12px", color: "#6655aa", letterSpacing: "2px" }}>
+              3D Pinball
+            </div>
+            <div style={{
+              fontSize: "28px", fontWeight: "bold",
+              background: "linear-gradient(180deg, #cc88ff, #8844cc)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              lineHeight: "1.1", marginTop: "2px",
+            }}>
+              Space
+            </div>
+            <div style={{
+              fontSize: "20px", fontStyle: "italic", color: "#ff8844",
+              textShadow: "0 0 8px rgba(255,136,68,0.5)",
+            }}>
+              Mission
+            </div>
+            {/* Ball counter */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "flex-end",
+              marginTop: "10px", gap: "6px",
+            }}>
+              <span style={{ fontSize: "13px", color: "#888" }}>BALL</span>
+              <span style={{
+                fontSize: "18px", fontWeight: "bold", color: "#ffcc00",
+                backgroundColor: "#222", padding: "2px 8px",
+                border: "1px solid #444",
+              }}>
+                {ballInfo.current}
+              </span>
+            </div>
           </div>
-        )}
+
+          {/* Score area */}
+          <div style={{
+            padding: "12px 10px",
+            borderBottom: "2px solid #2a2a3a",
+            background: "#0e0e18",
+          }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+              <span style={{
+                fontSize: "16px", fontWeight: "bold", color: "#ffcc00",
+                minWidth: "16px",
+              }}>
+                1
+              </span>
+              <span style={{
+                fontSize: "18px", fontWeight: "bold", color: "#ffdd44",
+                textShadow: "0 0 6px rgba(255,220,68,0.3)",
+                letterSpacing: "1px",
+              }}>
+                {score.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Status area */}
+          <div style={{
+            padding: "15px 12px",
+            borderBottom: "2px solid #2a2a3a",
+            background: "#0e0e18",
+            flex: 1,
+          }}>
+            <div style={{
+              fontSize: "15px", fontWeight: "bold", color: "#ddd",
+              lineHeight: "1.4",
+            }}>
+              {statusText}
+            </div>
+
+            {phase === "playing" && gameStateRef.current.multiballActive && (
+              <div style={{
+                marginTop: "10px", fontSize: "13px", color: "#ff44ff",
+                textShadow: "0 0 8px rgba(255,68,255,0.5)",
+              }}>
+                MULTIBALL ACTIVE
+              </div>
+            )}
+          </div>
+
+          {/* Controls help */}
+          <div style={{
+            padding: "10px 12px",
+            background: "#0a0a14",
+            fontSize: "10px", color: "#444",
+            lineHeight: "1.6",
+          }}>
+            <div>Z / Left Arrow: Left Flipper</div>
+            <div>X / Right Arrow: Right Flipper</div>
+            <div>Space: Launch Ball</div>
+          </div>
+
+          {/* High score */}
+          <div style={{
+            padding: "8px 12px",
+            background: "#0a0a14",
+            borderTop: "1px solid #1a1a2a",
+            fontSize: "10px", color: "#555",
+          }}>
+            HIGH SCORE: {gameStateRef.current.highScore.toLocaleString()}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+const overlayStyle: React.CSSProperties = {
+  position: "absolute", inset: 0,
+  display: "flex", flexDirection: "column",
+  alignItems: "center", justifyContent: "center",
+  backgroundColor: "rgba(5,5,15,0.85)",
+};
+
+const buttonStyle: React.CSSProperties = {
+  padding: "10px 28px", fontSize: "14px", cursor: "pointer",
+  backgroundColor: "#1a1a30", color: "#cc88ff",
+  border: "2px solid #4a3a6a", fontFamily: "monospace",
+  marginTop: "20px", letterSpacing: "2px",
+  transition: "all 0.2s",
+};
