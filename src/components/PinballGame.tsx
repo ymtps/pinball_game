@@ -9,6 +9,8 @@ import type { Flipper } from "../game/flipper";
 import { createInputHandler } from "../game/input";
 import { Plunger } from "../game/plunger";
 import { GameState } from "../game/gameState";
+import { createTableElements, setupTableCollisions, processRemovalQueue, resetDropTargets } from "../game/table";
+import type { TableElements } from "../game/table";
 import type { GamePhase } from "../game/types";
 import { DEFAULT_CONFIG } from "../game/types";
 
@@ -65,6 +67,27 @@ export function PinballGame() {
     const flippers: Flipper[] = createFlippers();
     addFlippersToWorld(engine.world, flippers);
 
+    // Create table elements
+    const tableElements = createTableElements();
+    World.add(engine.world, tableElements.allBodies);
+
+    // Track drop target state
+    const dropTargetState = new Set<number>();
+
+    // Setup table collision handlers
+    setupTableCollisions(
+      engine,
+      tableElements,
+      (points, _label, _position) => {
+        if (gameState.phase === "playing") {
+          gameState.addScore(points);
+        }
+      },
+      (targetIndex) => {
+        dropTargetState.add(targetIndex);
+      }
+    );
+
     // Create ball manager
     const ballManager = new BallManager(engine.world);
     ballManagerRef.current = ballManager;
@@ -88,7 +111,9 @@ export function PinballGame() {
             if (gameState.phase === "playing") {
               const continueGame = gameState.drainBall();
               if (continueGame) {
-                // Spawn new ball at plunger
+                // Reset drop targets and spawn new ball
+                resetDropTargets(engine.world, tableElements.dropTargets);
+                dropTargetState.clear();
                 waitingForLaunchRef.current = true;
                 spawnBallAtPlunger();
               }
@@ -107,6 +132,9 @@ export function PinballGame() {
 
     // Game loop with input processing
     const gameLoop = createGameLoop(engine, ctx, DEFAULT_CONFIG, () => {
+      // Process deferred body removals
+      processRemovalQueue(engine.world);
+
       // Update flippers
       for (const flipper of flippers) {
         const isActive =
