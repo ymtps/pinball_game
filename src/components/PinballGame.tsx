@@ -10,6 +10,8 @@ import { createInputHandler } from "../game/input";
 import { Plunger } from "../game/plunger";
 import { GameState } from "../game/gameState";
 import { createTableElements, setupTableCollisions, processRemovalQueue, resetDropTargets } from "../game/table";
+import { addHitEffect, addScorePopup } from "../game/renderer";
+import { initAudio, playSound } from "../game/soundManager";
 import type { TableElements } from "../game/table";
 import type { GamePhase } from "../game/types";
 import { DEFAULT_CONFIG } from "../game/types";
@@ -78,9 +80,28 @@ export function PinballGame() {
     setupTableCollisions(
       engine,
       tableElements,
-      (points, _label, _position) => {
+      (points, label, position) => {
         if (gameState.phase === "playing") {
           gameState.addScore(points);
+          addScorePopup(position.x, position.y, points);
+          const colors: Record<string, string> = {
+            bumper: "#ff4444",
+            slingshot: "#ffaa00",
+            lane: "#4488ff",
+            "drop-target": "#44ff44",
+            ramp: "#aa44ff",
+          };
+          addHitEffect(position.x, position.y, colors[label] || "#ff0");
+
+          // Sound effects
+          const soundMap: Record<string, "bumper" | "slingshot" | "dropTarget" | "score"> = {
+            bumper: "bumper",
+            slingshot: "slingshot",
+            "drop-target": "dropTarget",
+            lane: "score",
+            ramp: "score",
+          };
+          playSound(soundMap[label] || "score");
         }
       },
       (targetIndex) => {
@@ -107,6 +128,7 @@ export function PinballGame() {
           setTimeout(() => {
             ballManager.removeBall(ballBody);
             ballLaunchedRef.current = false;
+            playSound("drain");
 
             if (gameState.phase === "playing") {
               const continueGame = gameState.drainBall();
@@ -135,13 +157,19 @@ export function PinballGame() {
       // Process deferred body removals
       processRemovalQueue(engine.world);
 
-      // Update flippers
+      // Update flippers with sound
       for (const flipper of flippers) {
         const isActive =
           flipper.side === "left"
             ? input.keyState.leftFlipper
             : input.keyState.rightFlipper;
+        const wasAtRest = flipper.side === "left"
+          ? flipper.body.angle >= flipper.restAngle - 0.05
+          : flipper.body.angle <= flipper.restAngle + 0.05;
         updateFlipper(flipper, isActive);
+        if (isActive && wasAtRest) {
+          playSound("flipper");
+        }
       }
 
       // Plunger logic - only when ball hasn't been launched yet
@@ -151,6 +179,7 @@ export function PinballGame() {
         const launched = plunger.update(input.keyState.plunger, currentBall);
         if (launched) {
           ballLaunchedRef.current = true;
+          playSound("launch");
         }
       }
     });
@@ -174,6 +203,7 @@ export function PinballGame() {
 
     if (!ballManager) return;
 
+    initAudio(); // Resume AudioContext on user gesture
     gameState.startGame();
     ballManager.removeAllBalls();
     ballManager.addBall(plunger.launchX, plunger.launchY);
