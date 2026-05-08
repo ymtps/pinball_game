@@ -2,7 +2,7 @@ import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
 
-const { Engine, World, Bodies, Body, Events } = Matter;
+const { Engine, Bodies, Body, Events } = Matter;
 
 export function createEngine() {
   return Engine.create({
@@ -23,8 +23,6 @@ export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
     Bodies.rectangle(-half, height / 2, t, height + t * 2, { isStatic: true, label: "wall" }),
     // Right wall
     Bodies.rectangle(width + half, height / 2, t, height + t * 2, { isStatic: true, label: "wall" }),
-    // Bottom wall (will be replaced by drain sensor later)
-    Bodies.rectangle(width / 2, height + half, width + t * 2, t, { isStatic: true, label: "wall" }),
   ];
 
   // Set collision filter for table layer
@@ -38,8 +36,17 @@ export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
   return walls;
 }
 
+export function createDrainSensor(config: GameConfig = DEFAULT_CONFIG) {
+  const { width, height } = config;
+  return Bodies.rectangle(width / 2, height + 30, width + 40, 20, {
+    isStatic: true,
+    isSensor: true,
+    label: "drain",
+  });
+}
+
 export function createBall(x: number, y: number, config: GameConfig = DEFAULT_CONFIG) {
-  const ball = Bodies.circle(x, y, config.ballRadius, {
+  return Bodies.circle(x, y, config.ballRadius, {
     restitution: 0.5,
     friction: 0.01,
     density: 0.004,
@@ -49,7 +56,6 @@ export function createBall(x: number, y: number, config: GameConfig = DEFAULT_CO
       mask: COLLISION_CATEGORY.TABLE,
     },
   });
-  return ball;
 }
 
 export function setupSpeedLimit(
