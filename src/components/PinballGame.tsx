@@ -12,6 +12,7 @@ import { GameState } from "../game/gameState";
 import { createTableElements, setupTableCollisions, processRemovalQueue, resetDropTargets } from "../game/table";
 import { addHitEffect, addScorePopup, updateVisualState } from "../game/renderer";
 import { initAudio, playSound } from "../game/soundManager";
+import type { SoundType } from "../game/soundManager";
 import type { GamePhase } from "../game/types";
 import { DEFAULT_CONFIG } from "../game/types";
 import type { TableLayoutConfig } from "../game/tableConfig";
@@ -91,7 +92,7 @@ export function PinballGame({ layout, onBackToEditor }: PinballGameProps) {
             "top-lane": "#ffdd00", "inlane": "#4488ff",
           };
           addHitEffect(position.x, position.y, colors[label] || "#ff0");
-          const soundMap: Record<string, string> = {
+          const soundMap: Record<string, SoundType> = {
             bumper: "bumper", slingshot: "slingshot",
             "drop-target": "dropTarget", lane: "score", ramp: "score",
             spinner: "spinner", "standup-target": "standupTarget",

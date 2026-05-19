@@ -63,7 +63,7 @@ export function TableEditor({ layout, onLayoutChange, onPlay }: TableEditorProps
   const [dragMode, setDragMode] = useState<DragMode>("none");
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0, r: 0 });
+  const [, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0, r: 0 });
 
   // Selected flipper side (mutually exclusive with selectedId)
   const [selectedFlipperSide, setSelectedFlipperSide] = useState<"left" | "right" | null>(null);

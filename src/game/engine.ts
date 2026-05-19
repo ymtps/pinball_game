@@ -38,7 +38,6 @@ export function createEngine() {
 export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
   const { height, wallThickness: t } = config;
   const half = t / 2;
-  const pW = PLAYFIELD_WIDTH;
 
   const walls = [
     // Outer boundary walls (non-editable infrastructure)

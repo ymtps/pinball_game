@@ -1,4 +1,4 @@
-type SoundType = "flipper" | "bumper" | "launch" | "score" | "drain" | "slingshot" | "dropTarget" | "spinner" | "kickback" | "kickout" | "standupTarget";
+export type SoundType = "flipper" | "bumper" | "launch" | "score" | "drain" | "slingshot" | "dropTarget" | "spinner" | "kickback" | "kickout" | "standupTarget";
 
 let audioCtx: AudioContext | null = null;
 let initialized = false;

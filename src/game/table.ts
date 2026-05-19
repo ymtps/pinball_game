@@ -1,7 +1,6 @@
 import Matter from "matter-js";
 import type { GameConfig } from "./types";
 import { DEFAULT_CONFIG, COLLISION_CATEGORY } from "./types";
-import { PLAYFIELD_WIDTH } from "./engine";
 import type { TableLayoutConfig } from "./tableConfig";
 import { getDefaultLayout } from "./tableConfig";
 
@@ -24,7 +23,7 @@ export function processRemovalQueue(world: Matter.World) {
 }
 
 export function createTableElements(
-  config: GameConfig = DEFAULT_CONFIG,
+  _config: GameConfig = DEFAULT_CONFIG,
   layout?: TableLayoutConfig
 ): TableElements {
   const allBodies: Matter.Body[] = [];
@@ -123,11 +122,11 @@ export function createTableElements(
       }
       case "wall-rect": {
         const w = el.width ?? 60, h = el.height ?? 10, cr = el.cornerRadius ?? 0;
-        const opts: Matter.IBodyDefinition = {
+        const opts: Matter.IChamferableBodyDefinition = {
           isStatic: true, label: "wall-rect", angle: el.angle ?? 0,
           collisionFilter: wallFilter,
         };
-        if (cr > 0) (opts as any).chamfer = { radius: Math.min(cr, Math.min(w, h) / 2 - 0.5) };
+        if (cr > 0) opts.chamfer = { radius: Math.min(cr, Math.min(w, h) / 2 - 0.5) };
         const wallBody = Bodies.rectangle(el.x, el.y, w, h, opts);
         (wallBody as any).wallWidth = w;
         (wallBody as any).wallHeight = h;
@@ -169,7 +168,7 @@ export function createTableElements(
 
 export function setupTableCollisions(
   engine: Matter.Engine,
-  elements: TableElements,
+  _elements: TableElements,
   onScore: (points: number, label: string, position: { x: number; y: number }) => void,
   onDropTargetHit: (targetIndex: number) => void,
   onSpecialEvent: (type: string, data: any) => void

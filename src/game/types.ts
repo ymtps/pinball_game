@@ -1,5 +1,3 @@
-import Matter from "matter-js";
-
 export interface GameCallbacks {
   onScoreChange?: (score: number) => void;
   onBallChange?: (ballNumber: number, ballsRemaining: number) => void;

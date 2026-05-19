@@ -465,29 +465,3 @@ function renderPopups(ctx: CanvasRenderingContext2D) {
   }
 }
 
-function renderKickbackIndicator(ctx: CanvasRenderingContext2D, x: number, y: number, available: boolean) {
-  ctx.fillStyle = available ? "#00e0ff" : "#1a2030";
-  if (available) { ctx.shadowColor = "rgba(0, 220, 255, 0.5)"; ctx.shadowBlur = 5; }
-  ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y + 4); ctx.lineTo(x - 5, y + 4); ctx.closePath(); ctx.fill();
-  ctx.shadowBlur = 0;
-}
-
-function renderTopLaneIndicators(ctx: CanvasRenderingContext2D, lit: boolean[]) {
-  const positions = [110, 170, 230];
-  for (let i = 0; i < 3; i++) {
-    const x = positions[i], y = 85;
-    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2);
-    if (lit[i]) {
-      ctx.shadowColor = "rgba(0, 220, 255, 0.6)"; ctx.shadowBlur = 8;
-      const g = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, 7);
-      g.addColorStop(0, "#c0ffff"); g.addColorStop(1, "#00a0c0");
-      ctx.fillStyle = g;
-    } else {
-      ctx.fillStyle = "rgba(60, 100, 180, 0.15)";
-    }
-    ctx.fill();
-    ctx.strokeStyle = lit[i] ? "rgba(0, 220, 255, 0.6)" : "rgba(60, 100, 180, 0.25)";
-    ctx.lineWidth = 1; ctx.stroke();
-    ctx.shadowBlur = 0;
-  }
-}
