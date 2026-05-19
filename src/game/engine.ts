@@ -41,42 +41,19 @@ export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
   const pW = PLAYFIELD_WIDTH;
 
   const walls = [
-    // ── Outer walls ──
-    // Top wall (playfield only)
-    Bodies.rectangle(pW / 2, -half, pW + t, t, {
+    // Outer boundary walls (non-editable infrastructure)
+    Bodies.rectangle(config.width / 2, -half, config.width + t, t, {
       isStatic: true, label: "wall",
     }),
-    // Left wall
     Bodies.rectangle(-half, height / 2, t, height + t * 2, {
       isStatic: true, label: "wall",
     }),
-    // Right outer wall (launch lane right side)
     Bodies.rectangle(config.width + half, height / 2, t, height + t * 2, {
       isStatic: true, label: "wall",
     }),
-
-    // ── Launch lane ──
-    // Separator wall: runs from top curve down to flipper area
-    Bodies.rectangle(LAUNCH_LANE.wallX, height * 0.48, t * 0.5, height * 0.8, {
-      isStatic: true, label: "wall",
-    }),
-    // Top curve: angled wall redirecting ball from lane into playfield
-    Bodies.rectangle(LAUNCH_LANE.wallX - 5, LAUNCH_LANE.gateY, LAUNCH_LANE.laneWidth + 30, t * 0.5, {
-      isStatic: true, label: "wall", angle: 0.2,
-    }),
-    // Bottom stop: prevents ball from falling out of lane
+    // Launch lane bottom stop (part of plunger mechanism)
     Bodies.rectangle(LAUNCH_LANE.centerX, height - 25, LAUNCH_LANE.laneWidth - 2, t * 0.5, {
       isStatic: true, label: "wall",
-    }),
-
-    // ── V-shaped drain area ──
-    // Left outer wall angling inward toward drain
-    Bodies.rectangle(28, height * 0.82, t * 0.5, 160, {
-      isStatic: true, label: "wall", angle: 0.35,
-    }),
-    // Right outer wall angling inward toward drain
-    Bodies.rectangle(pW - 28, height * 0.82, t * 0.5, 160, {
-      isStatic: true, label: "wall", angle: -0.35,
     }),
   ];
 
@@ -92,8 +69,8 @@ export function createWalls(config: GameConfig = DEFAULT_CONFIG) {
 
 export function createDrainSensor(config: GameConfig = DEFAULT_CONFIG) {
   const { height } = config;
-  // Narrow drain sensor below flippers
-  return Bodies.rectangle(DRAIN_CENTER_X, height + 20, PLAYFIELD_WIDTH, 30, {
+  // Drain sensor below flippers (full width including launch lane)
+  return Bodies.rectangle(config.width / 2, height + 20, config.width, 30, {
     isStatic: true,
     isSensor: true,
     label: "drain",

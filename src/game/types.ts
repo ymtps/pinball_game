@@ -22,7 +22,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   wallThickness: 20,
   ballRadius: 8,
   substeps: 3,
-  maxBallSpeed: 20,
+  maxBallSpeed: 25,
 };
 
 export const COLLISION_CATEGORY = {

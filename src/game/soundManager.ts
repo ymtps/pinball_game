@@ -1,4 +1,4 @@
-type SoundType = "flipper" | "bumper" | "launch" | "score" | "drain" | "slingshot" | "dropTarget";
+type SoundType = "flipper" | "bumper" | "launch" | "score" | "drain" | "slingshot" | "dropTarget" | "spinner" | "kickback" | "kickout" | "standupTarget";
 
 let audioCtx: AudioContext | null = null;
 let initialized = false;
@@ -49,6 +49,18 @@ export function playSound(type: SoundType) {
         break;
       case "dropTarget":
         playDropTargetSound(ctx);
+        break;
+      case "spinner":
+        playSpinnerSound(ctx);
+        break;
+      case "kickback":
+        playKickbackSound(ctx);
+        break;
+      case "kickout":
+        playKickoutSound(ctx);
+        break;
+      case "standupTarget":
+        playStandupTargetSound(ctx);
         break;
     }
   } catch {
@@ -174,4 +186,60 @@ function playDropTargetSound(ctx: AudioContext) {
 
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.12);
+}
+
+function playSpinnerSound(ctx: AudioContext) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(2000, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + 0.03);
+  gain.gain.setValueAtTime(0.08, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.03);
+}
+
+function playKickbackSound(ctx: AudioContext) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(150, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.2);
+}
+
+function playKickoutSound(ctx: AudioContext) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(600, ctx.currentTime);
+  osc.frequency.setValueAtTime(900, ctx.currentTime + 0.05);
+  gain.gain.setValueAtTime(0.12, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.1);
+}
+
+function playStandupTargetSound(ctx: AudioContext) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(1000, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(1400, ctx.currentTime + 0.06);
+  gain.gain.setValueAtTime(0.10, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.06);
 }
