@@ -125,8 +125,8 @@ export function getDefaultLayout(): TableLayoutConfig {
 
       // ── Solid floor walls: block drainage everywhere except the central flipper gap ──
       // Drain can only happen between x=150 and x=190 (where there is no floor wall).
-      { id: generateId(), type: "wall-rect" as ElementType, x: 65,  y: 610, width: 80, height: 8, angle: 0.45, cornerRadius: 4 },
-      { id: generateId(), type: "wall-rect" as ElementType, x: 275, y: 610, width: 80, height: 8, angle: -0.45, cornerRadius: 4 },
+      { id: generateId(), type: "wall-rect" as ElementType, x: 50,  y: 610, width: 90, height: 8, angle: 0.45, cornerRadius: 4 },
+      { id: generateId(), type: "wall-rect" as ElementType, x: 290, y: 610, width: 90, height: 8, angle: -0.45, cornerRadius: 4 },
     ],
   };
 }
