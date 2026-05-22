@@ -40,8 +40,8 @@ export interface TableLayoutConfig {
 }
 
 export const DEFAULT_FLIPPERS: { left: FlipperConfig; right: FlipperConfig } = {
-  left:  { pivotX: 105, pivotY: 640, width: 65, height: 12 },
-  right: { pivotX: 235, pivotY: 640, width: 65, height: 12 },
+  left:  { pivotX: 105, pivotY: 640, width: 68, height: 12 },
+  right: { pivotX: 235, pivotY: 640, width: 68, height: 12 },
 };
 
 export function getFlipperConfig(layout: TableLayoutConfig, side: "left" | "right"): FlipperConfig {
@@ -125,8 +125,8 @@ export function getDefaultLayout(): TableLayoutConfig {
 
       // ── Solid floor walls: block drainage everywhere except the central flipper gap ──
       // Drain can only happen between x=150 and x=190 (where there is no floor wall).
-      { id: generateId(), type: "wall-rect" as ElementType, x: 50,  y: 610, width: 100, height: 8, angle: 0.45, cornerRadius: 4 },
-      { id: generateId(), type: "wall-rect" as ElementType, x: 290, y: 610, width: 100, height: 8, angle: -0.45, cornerRadius: 4 },
+      { id: generateId(), type: "wall-rect" as ElementType, x: 50,  y: 590, width: 100, height: 12, angle: 0.45, cornerRadius: 0 },
+      { id: generateId(), type: "wall-rect" as ElementType, x: 290, y: 590, width: 100, height: 12, angle: -0.45, cornerRadius: 0 },
     ],
   };
 }
