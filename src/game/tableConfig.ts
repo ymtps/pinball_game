@@ -80,7 +80,7 @@ export function getDefaultLayout(): TableLayoutConfig {
     flippers: { left: { ...DEFAULT_FLIPPERS.left }, right: { ...DEFAULT_FLIPPERS.right } },
     elements: [
       // ── Launch lane separator (extends nearly to the top to keep ball trapped in lane until deflected) ──
-      { id: generateId(), type: "wall-rect" as ElementType, x: 340, y: 425, width: 10, height: 550, cornerRadius: 0 },
+      { id: generateId(), type: "wall-rect" as ElementType, x: 340, y: 425, width: 10, height: 650, cornerRadius: 0 },
 
       // ── Launch lane top cap: slopes down-right so launched ball deflects DOWN-LEFT into the playfield ──
       { id: generateId(), type: "wall-rect" as ElementType, x: 370, y: 30, width: 70, height: 8, angle: 0.55, cornerRadius: 2 },

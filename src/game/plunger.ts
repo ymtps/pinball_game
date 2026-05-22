@@ -7,8 +7,11 @@ const { Body, Bodies, World } = Matter;
 
 const MAX_CHARGE = 1.0;
 const CHARGE_RATE = 0.025;
-const MAX_LAUNCH_FORCE = 0.35;
-const MIN_LAUNCH_FORCE = 0.12;
+// Frame-rate independent launch: set velocity directly instead of applyForce,
+// since applyForce's effect depends on physics delta and varied across machines.
+// MAX_LAUNCH_SPEED is just under maxBallSpeed (25) so the speed cap never trims it.
+const MAX_LAUNCH_SPEED = 30;
+const MIN_LAUNCH_SPEED = 14;
 // Max physical pull distance — kept small so the ball/platform stay above the
 // launch-lane bottom wall and out of the drain sensor at full charge.
 const MAX_PULL = 32; // must match renderer's maxPull
@@ -64,14 +67,13 @@ export class Plunger {
 
     if (!spacePressed && this.isCharging) {
       this.isCharging = false;
-      const force = MIN_LAUNCH_FORCE + (MAX_LAUNCH_FORCE - MIN_LAUNCH_FORCE) * this.charge;
+      const speed = MIN_LAUNCH_SPEED + (MAX_LAUNCH_SPEED - MIN_LAUNCH_SPEED) * this.charge;
       // Temporarily disable platform collision so ball can pass through
       this.platform.isSensor = true;
       // Snap ball to rest and launch
       Body.setPosition(this.platform, { x: this.launchX, y: this.restY });
       Body.setPosition(ball, { x: this.launchX, y: this.restY - DEFAULT_CONFIG.ballRadius - 3 });
-      Body.setVelocity(ball, { x: 0, y: 0 });
-      Body.applyForce(ball, ball.position, { x: 0, y: -force });
+      Body.setVelocity(ball, { x: 0, y: -speed });
       this.charge = 0;
       // Re-enable platform collision after ball clears
       setTimeout(() => { this.platform.isSensor = false; }, 300);
